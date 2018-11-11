@@ -11,8 +11,14 @@ import com.google.zxing.Result
 import kotlinx.android.synthetic.main.activity_leitor.*
 import me.dm7.barcodescanner.core.CameraUtils
 import me.dm7.barcodescanner.zxing.ZXingScannerView
+import promobusque.ramon.leitorpromobusque.retrofit.RetrofitInitializer
+import promobusque.ramon.leitorpromobusque.servicos.HelperJson
 import pub.devrel.easypermissions.EasyPermissions
 import pub.devrel.easypermissions.PermissionRequest
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
 
 @Suppress("DEPRECATION")
 class LeitorActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, ZXingScannerView.ResultHandler {
@@ -85,8 +91,30 @@ class LeitorActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
     }
 
     override fun handleResult(result: Result?) {
-        Log.i("LOG", "Conteúdo do código lido: ${result!!.text}")
+
+        var mensagem: String = ""
+        val conteudo = result!!.text
+        Log.i("LOG", "Conteúdo do código lido: ${conteudo}")
         Log.i("LOG", "Formato do código lido: ${result.barcodeFormat.name}")
+
+        val json = HelperJson().deserializaJsonParticipacao(conteudo)
+        RetrofitInitializer()
+            .participacaoService()
+            .validarParticipacao(json)
+            .enqueue(object: Callback<Void> {
+                override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                    mensagem = "participação ${json.CodigoGerado} vinculada com sucesso"
+                    Log.i("Leitor", mensagem)
+                }
+
+                override fun onFailure(call: Call<Void>, t: Throwable) {
+                    mensagem = "ocorreu um erro ao validar participação: ${t.message}"
+                    Log.e("Leitor", mensagem)
+                }
+            })
+
+        //Toast.makeText(this, mensagem, Toast.LENGTH_LONG).show()
+
         z_xing_scanner.resumeCameraPreview( this )
     }
 }
